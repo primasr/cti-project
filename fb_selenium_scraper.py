@@ -2,6 +2,7 @@ import os, re, time, hashlib, argparse
 from urllib.parse import urlparse
 import urllib.parse as up
 import pandas as pd
+from datetime import datetime
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -11,6 +12,7 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
 
 CLOSE_TEXT_PATTERNS = [
     r"(?i)^close$",
@@ -33,25 +35,20 @@ CLOSE_SELECTORS = [
     'div[role="dialog"] [aria-label="Close"]',
 ]
 
+def _file_ok(path: str) -> bool:
+    try:
+        return os.path.isfile(path) and os.path.getsize(path) > 0
+    except Exception:
+        return False
+
+def timestamp_id() -> str:
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
 def slugify_url(url: str) -> str:
     parsed = urlparse(url)
     base = (parsed.netloc + parsed.path).strip("/").replace("/", "_")
     h = hashlib.md5(url.encode()).hexdigest()[:8]
     return (base or "page") + "_" + h
-
-# def read_urls(csv_path: str):
-#     df = pd.read_csv(csv_path, sep=None, engine="python")
-#     col = "Post Url"
-#     if col not in df.columns:
-#         # try case/underscore variations
-#         for c in df.columns:
-#             if c.lower().replace("_", " ") == "post url":
-#                 col = c
-#                 break
-#         else:
-#             raise ValueError("Column 'Post Url' not found.")
-#     urls = [u for u in df[col].dropna().astype(str) if u.strip()]
-#     return urls
 
 def read_urls(csv_path: str, column_name="Original URL"):
     df = pd.read_csv(csv_path, sep=None, engine="python")
@@ -157,47 +154,101 @@ def fullpage_screenshot(driver, path):
 def scrape(csv_path, outdir="shots", headless=True, delay=1.0, width=1366, height=768):
     os.makedirs(outdir, exist_ok=True)
     urls = read_urls(csv_path)
+
+    batch_ts = timestamp_id()
+
+    # ensure report dir
+    report_dir = "report"                   
+    os.makedirs(report_dir, exist_ok=True)  
+    report_path = os.path.join(report_dir, f"reports_{batch_ts}.xlsx")
+
     if not urls:
         print("No URLs found.")
+        # still write an empty report to be explicit
+        pd.DataFrame(columns=["No", "Original URL", "Status", "Screenshot Saved As"]).to_excel(report_path, index=False)
+        print(f"→ wrote empty report: {report_path}")
         return
 
+    results = []  # rows for the final report
+
     driver = setup_driver(headless=headless, width=width, height=height)
+    try:
+        for i, url in enumerate(urls, 1):
+            # Prefer {id}.png; fallback to slug if no id is present
+            ts = timestamp_id()
 
-    for i, url in enumerate(urls, 1):
-        # fname = slugify_url(url) + ".png"
-        parsed = up.urlparse(url)
-        qs = up.parse_qs(parsed.query)
-        fb_id = qs.get("id", ["noid"])[0]   # default "noid" if not found
-        fname = f"{fb_id}.png"
-        
-        outpath = os.path.join(outdir, fname)
-        print(f"[{i}/{len(urls)}] {url}")
+            parsed = up.urlparse(url)
+            qs = up.parse_qs(parsed.query)
+            fb_id = qs.get("id", ["noid"])[0]
+            base_name = fb_id if fb_id != "noid" else slugify_url(url)
+            fname = f"{batch_ts}_{base_name}.png"
+
+
+            outpath = os.path.join(outdir, fname)
+            status = ""
+            saved_as = ""
+
+            print(f"[{i}/{len(urls)}] {url}")
+            try:
+                driver.get(url)
+                # allow DOM to build
+                time.sleep(1.5)
+
+                # Try multiple times (FB often spawns modal after a short delay)
+                closed = False
+                for _ in range(3):
+                    if try_close_modal(driver):
+                        closed = True
+                        time.sleep(0.5)
+                    time.sleep(0.4)
+
+                # small settle time for images
+                time.sleep(1.0)
+
+                ok = fullpage_screenshot(driver, outpath)
+
+                if ok and _file_ok(outpath):
+                    status = "SUCCESS"
+                    saved_as = os.path.join(outdir, fname)
+                else:
+                    # fallback already attempted inside fullpage_screenshot; check file again
+                    if _file_ok(outpath):
+                        status = "SUCCESS"  # fallback viewport worked
+                        saved_as = os.path.join(outdir, fname)
+                    else:
+                        status = "FAILED: screenshot empty or not created"
+
+                print(f"  → saved {outpath} (fullpage={ok}, modal_closed={closed})")
+                time.sleep(delay)
+
+            except TimeoutException as te:
+                status = f"TimeoutException: {te.__class__.__name__}"
+                print("  ! navigation timeout")
+            except Exception as e:
+                status = f"Exception: {type(e).__name__}: {e}"
+                print(f"  ! error: {e}")
+
+            # Append a report row (always)
+            results.append({
+                "No": i,
+                "Original URL": url,
+                "Status": status if status else "UNKNOWN",
+                "Screenshot Saved As": saved_as
+            })
+
+    finally:
+        # Always write the report, even if something crashes mid-run
+        df_report = pd.DataFrame(results, columns=["No", "Original URL", "Status", "Screenshot Saved As"])
         try:
-            driver.get(url)
-            # allow DOM to build
-            time.sleep(1.5)
-
-            # Try multiple times (FB often spawns modal after a short delay)
-            closed = False
-            for _ in range(3):
-                if try_close_modal(driver):
-                    closed = True
-                    time.sleep(0.5)
-                time.sleep(0.4)
-
-            # small settle time for images
-            time.sleep(1.0)
-
-            ok = fullpage_screenshot(driver, outpath)
-            print(f"  → saved {outpath} (fullpage={ok}, modal_closed={closed})")
-            time.sleep(delay)
-
-        except TimeoutException:
-            print("  ! navigation timeout")
+            df_report.to_excel(report_path, index=False)
+            print(f"→ wrote report: {report_path} ({len(df_report)} rows)")
         except Exception as e:
-            print(f"  ! error: {e}")
+            # As a backup, also write CSV if Excel writer fails (e.g., openpyxl missing)
+            fallback_csv = os.path.splitext(report_path)[0] + ".csv"
+            df_report.to_csv(fallback_csv, index=False)
+            print(f"→ could not write Excel ({e}); wrote CSV instead: {fallback_csv}")
 
-    driver.quit()
+        driver.quit()
 
 def main():
     ap = argparse.ArgumentParser(description="Selenium Facebook Screenshotter (CSV -> PNG)")
