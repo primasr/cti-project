@@ -1,7 +1,16 @@
 import pandas as pd
 from urllib.parse import urlparse
 import argparse
-import re
+import re, os
+from datetime import datetime
+
+def _stamp_filename(filename: str, ts: str | None = None, default_ext: str = ".csv") -> str:
+    """Insert _YYYYmmdd_HHMMSS before the extension (or add .csv if missing)."""
+    ts = ts or datetime.now().strftime("%Y%m%d_%H%M%S")
+    root, ext = os.path.splitext(filename)
+    if not ext:
+        ext = default_ext
+    return f"{root}_{ts}{ext}"
 
 def normalize_url(raw: str) -> str:
     """Remove http/https/www, keep host+path+query, strip trailing slash."""
@@ -26,18 +35,18 @@ def normalize_url(raw: str) -> str:
         norm = norm[:-1]
     return norm
 
-def find_new_links(source_csv, db_excel, out_csv):
+def find_new_links(source_csv, db_excel, source_col = "Post Url", dest_col = "Full URL\n[Ketik lengkap tanpa http dan https]", out_file="data.csv", out_dir="cleaned_data"):
     df_src = pd.read_csv(source_csv, sep=None, engine="python")
-    if "Post Url" not in df_src.columns:
-        raise ValueError("Column 'Post Url' not found in source file")
+    if source_col not in df_src.columns:
+        raise ValueError(f"Column '{source_col}' not found in source file")
 
     db = pd.read_excel(db_excel)
-    col = "Full URL\n[Ketik lengkap tanpa http dan https]"
-    if col not in db.columns:
-        raise ValueError(f"Column '{col}' not found in DB Excel")
+    dest_col = "Full URL\n[Ketik lengkap tanpa http dan https]"
+    if dest_col not in db.columns:
+        raise ValueError(f"Column '{dest_col}' not found in DB Excel")
 
-    src_urls = df_src["Post Url"].dropna().astype(str)
-    db_urls = db[col].dropna().astype(str)
+    src_urls = df_src[source_col].dropna().astype(str)
+    db_urls = db[dest_col].dropna().astype(str)
 
     src_norm = src_urls.apply(normalize_url)
     db_norm = db_urls.apply(normalize_url)
@@ -48,9 +57,16 @@ def find_new_links(source_csv, db_excel, out_csv):
         "Normalized URL": src_norm[new_mask].values
     }).drop_duplicates(subset=["Normalized URL"]).reset_index(drop=True)
 
+    # Ensure output directory exists
+    os.makedirs(out_dir, exist_ok=True)
+
+    # Build stamped output filename
+    stamped = _stamp_filename(out_file)             # e.g., data_20250921_153012.csv
+    out_path = os.path.join(out_dir, stamped)
+
     if not new_df.empty:
-        new_df.to_csv(out_csv, index=False)
-        print(f"✅ Found {len(new_df)} new links → saved to {out_csv}")
+        new_df.to_csv(out_path, index=False)
+        print(f"✅ Found {len(new_df)} new links → saved to {out_path}")
     else:
         print("ℹ️ No new links found.")
     return new_df
@@ -59,9 +75,21 @@ def main():
     ap = argparse.ArgumentParser(description="Find new unique links vs DB")
     ap.add_argument("source_csv", help="Alerts CSV (with 'Post Url' column)")
     ap.add_argument("db_excel", help="Database Excel file")
-    ap.add_argument("--out", default="new_links.csv", help="Output CSV filename")
+    ap.add_argument("--col_csv", default="Post Url", help="Column name in source CSV (default: 'Post Url')")
+    ap.add_argument("--col_excel", default="Full URL\n[Ketik lengkap tanpa http dan https]", help="Column name in dest Excel (default: 'Full URL\n[Ketik lengkap tanpa http dan https]')")
+    ap.add_argument("--outfile", default="data.csv", help="Output CSV filename (default: data.csv)")
+    ap.add_argument("--outdir", default="cleaned_data", help="Directory name to save the output (default: 'cleaned_data')")
+
     args = ap.parse_args()
-    find_new_links(args.source_csv, args.db_excel, args.out)
+    find_new_links(
+        args.source_csv,
+        args.db_excel,
+        source_col=args.col_csv,
+        dest_col=args.col_excel,
+        out_file=args.outfile,
+        out_dir=args.outdir
+    )
+
 
 if __name__ == "__main__":
     main()

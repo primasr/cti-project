@@ -7,7 +7,7 @@ This project contains two scripts:
 1. **prep_new_links.py**  
    - Prepares a list of **new, unique Facebook URLs** that are not yet in your reference database.  
    - It cleans and normalizes URLs (removes `http/https/www`, trims newlines).  
-   - Outputs a `new_links.csv` file containing only links that are not already present in the database.
+   - Outputs a `data_YYYYmmdd_HHMMSS.csv` file containing only links that are not already present in the database.
 
 2. **socmed_scraper.py**  
    - Reads `new_links.csv` and opens each URL in Chromium using Selenium.  
@@ -27,17 +27,23 @@ pip install selenium pandas openpyxl
 
 ## Usage
 
-### Step 1: Find new links
+### Step 1: Find Unchecked Data from Database
 
-Run the prep script to compare the alert CSV against your database Excel file:
+Run the prep script to compare the new CSV file against your database Excel file:
 
 ```bash
-python3 prep_new_links.py url.csv database.xlsx --out new_links.csv
+python3 prep_new_links.py <url.csv> <database.xlsx>
 ```
-- url.csv → your exported url file (must have column Post Url)
-- database.xlsx → your Excel database (must have column Full URL [Ketik lengkap tanpa http dan https])
-- new_links.csv → output file containing only new, unique links (not yet found in the DB)
 
+#### Mandatory Arguments
+- `url.csv` → your exported url file (must have column Post Url)
+- `database.xlsx` → your Excel database (must have column 'Full URL [Ketik lengkap tanpa http dan https]')
+
+#### Optional Arguments
+- `--col_csv` → Column name in source CSV (default: 'Post Url')
+- `--col_excel` → Column name in source Excel (default: 'Full URL [Ketik lengkap tanpa http dan https]')
+- `--outfile` → Output CSV filename (default: 'data.csv')
+- `--outdir` → Directory name to save the output (default: 'cleaned_data')
 
 ### Step 2: Scrape new links
 
