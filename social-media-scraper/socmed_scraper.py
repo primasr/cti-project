@@ -1,5 +1,5 @@
 import os, re, time, hashlib, argparse
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 import urllib.parse as up
 import pandas as pd
 from datetime import datetime
@@ -61,11 +61,11 @@ def slugify_url(url: str) -> str:
     h = hashlib.md5(url.encode()).hexdigest()[:8]
     return (base or "page") + "_" + h
 
-def read_urls(csv_path: str, column_name="Original URL"):
+def read_urls(csv_path: str, col_csv="Original URL"):
     df = pd.read_csv(csv_path, sep=None, engine="python")
-    if column_name not in df.columns:
-        raise ValueError(f"Column '{column_name}' not found in {csv_path}")
-    return df[column_name].dropna().astype(str).tolist()
+    if col_csv not in df.columns:
+        raise ValueError(f"Column '{col_csv}' not found in {csv_path}")
+    return df[col_csv].dropna().astype(str).tolist()
 
 def domain_of(url: str) -> str:
     try:
@@ -180,8 +180,94 @@ def extract_telegram_slug(url: str) -> str:
     segs = [s for s in p.path.split("/") if s]
     return (segs[0].split("?")[0] if segs else "noid") or "noid"
 
+# ---- facebook helpers ---- #
+def is_fb_ads_library(url: str) -> bool:
+    d = domain_of(url)
+    return "facebook.com" in d and "/ads/library" in url.lower()
+
+def _canonical_fb_url(u: str) -> str:
+    """
+    Normalize fb url for reporting (strip protocol/www trailing junk).
+    Example: https://www.facebook.com/Meta -> facebook.com/Meta
+    """
+    try:
+        p = urlparse(u) 
+        host = p.netloc.replace("www.", "")
+        path = p.path.rstrip("/")
+        q = f"?{p.query}" if p.query else ""
+        return f"{host}{path}{q}"
+    except Exception:
+        return u
+
+_FB_ADS_EXCLUDE = (
+    "ads/library",
+    "privacy", "terms", "help", "policies", "cookie",
+    "instagram.com", "whatsapp.com", "messenger.com",
+    "sharer.php", "share.php", "login.php"
+)
+
+def _score_fb_profile_href(href: str) -> int:
+    """
+    Heuristic scoring to pick the advertiser Page/Profile link.
+    Higher is better.
+    """
+    h = href.lower()
+    score = 0
+    if "facebook.com" in h: score += 2
+    if any(bad in h for bad in _FB_ADS_EXCLUDE): score -= 10
+    if "/profile.php?" in h: score += 6
+    if "/pages/" in h: score += 5
+    # clean vanity page: facebook.com/<name>
+    if re.match(r"^https?://(m\.)?facebook\.com/[^/?#]+/?$", h): score += 7
+    # de-prioritize static assets
+    if any(h.endswith(ext) for ext in (".png", ".jpg", ".svg", ".css", ".js")): score -= 5
+    return score
+
+def find_facebook_profile_from_ads(driver) -> str | None:
+    """
+    On an Ads Library page, find the advertiser 'Page/Profile' link.
+    Strategy:
+      - scan anchors, prefer vanity/profile/pages style links
+      - ignore ads/library & policy/help links
+    Returns absolute URL or None.
+    """
+    hrefs = set()
+    try:
+        anchors = driver.find_elements(By.CSS_SELECTOR, "a[href]")
+        for a in anchors:
+            try:
+                href = a.get_attribute("href")
+                if not href: 
+                    continue
+                # make absolute if relative
+                if href.startswith("/"):
+                    href = urljoin("https://www.facebook.com/", href)
+                hrefs.add(href)
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    if not hrefs:
+        return None
+
+    # keep only facebook.com
+    fbhrefs = [h for h in hrefs if "facebook.com" in (h or "").lower()]
+    if not fbhrefs:
+        return None
+
+    # pick best scored
+    best = None
+    best_score = -999
+    for h in fbhrefs:
+        s = _score_fb_profile_href(h)
+        if s > best_score:
+            best_score, best = s, h
+
+    return best
+
 # ---------- selenium setup ----------
-def setup_driver(headless=True, width=1366, height=768):
+def setup_driver(headless=True, width=1366, height=768, device="Chromium"):
     opts = webdriver.ChromeOptions()
     if headless:
         opts.add_argument("--headless=new")
@@ -192,13 +278,15 @@ def setup_driver(headless=True, width=1366, height=768):
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--lang=en-US")
 
-    # Chrome
-    # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
+    if device == "Chrome":
+        # Chrome
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
+    elif device == "Chromium":
+        # Chromium
+        opts.binary_location = "/usr/bin/chromium"
+        service = Service("/usr/bin/chromedriver")
+        driver = webdriver.Chrome(service=service, options=opts)
 
-    # Chromium
-    opts.binary_location = "/usr/bin/chromium"
-    service = Service("/usr/bin/chromedriver")
-    driver = webdriver.Chrome(service=service, options=opts)
     
     driver.set_page_load_timeout(30)
     return driver
@@ -366,7 +454,7 @@ def fullpage_screenshot(driver, path, max_height=8000):
     return ok
 
 # ---------- unified scraper ----------
-def scrape(csv_path, outdir="shots", headless=True, delay=1.0, width=1366, height=768):
+def scrape(csv_path, col_csv="Original URL", outdir="shots", headless=True, delay=1.0, width=1366, height=768, device="Chromium"):
     os.makedirs(outdir, exist_ok=True)
     urls = read_urls(csv_path)
 
@@ -392,6 +480,7 @@ def scrape(csv_path, outdir="shots", headless=True, delay=1.0, width=1366, heigh
             saved_as = ""
             base_name = ""
             socmed_name = ""
+            fb_profile_url = ""
 
             # choose platform + filename base
             if is_facebook(url):
@@ -422,8 +511,14 @@ def scrape(csv_path, outdir="shots", headless=True, delay=1.0, width=1366, heigh
                 base_name = slugify_url(url)
                 socmed_name = "other"
 
+            # inside your scrape loop
+            # build daily folder name
+            today_str = datetime.now().strftime("%Y%m%d")
+            day_outdir = os.path.join(outdir, today_str)
+            os.makedirs(day_outdir, exist_ok=True)
+
             fname = f"{batch_ts}_{socmed_name}_{base_name}.png"
-            outpath = os.path.join(outdir, fname)
+            outpath = os.path.join(day_outdir, fname)
 
             print(f"[{i}/{len(urls)}] {url}")
             try:
@@ -442,6 +537,15 @@ def scrape(csv_path, outdir="shots", headless=True, delay=1.0, width=1366, heigh
                         time.sleep(0.4)
                     # small settle time for images
                     time.sleep(1.0)
+
+                    if is_fb_ads_library(url):
+                        try:
+                            time.sleep(0.6)  # give DOM a bit more time
+                            prof = find_facebook_profile_from_ads(driver)
+                            if prof:
+                                fb_profile_url = _canonical_fb_url(prof)
+                        except Exception:
+                            pass
 
                 elif is_twitter(url):
                     # Wait for body first
@@ -621,11 +725,12 @@ def scrape(csv_path, outdir="shots", headless=True, delay=1.0, width=1366, heigh
                 "No": i,
                 "Original URL": url,
                 "Status": status if status else "UNKNOWN",
-                "Screenshot Saved As": saved_as
+                "Screenshot Saved As": saved_as,
+                "FB Advertiser Profile": fb_profile_url if fb_profile_url else ""
             })
 
     finally:
-        df_report = pd.DataFrame(results, columns=["No", "Original URL", "Status", "Screenshot Saved As"])
+        df_report = pd.DataFrame(results, columns=["No", "Original URL", "Status", "Screenshot Saved As", "FB Advertiser Profile"])
         try:
             df_report.to_excel(report_path, index=False)
             print(f"→ wrote report: {report_path} ({len(df_report)} rows)")
@@ -639,20 +744,24 @@ def scrape(csv_path, outdir="shots", headless=True, delay=1.0, width=1366, heigh
 def main():
     ap = argparse.ArgumentParser(description="Selenium Social Screenshotter (CSV -> PNG) for Facebook & Twitter/X")
     ap.add_argument("csv", help="CSV with 'Original URL' column")
-    ap.add_argument("--outdir", default="shots")
+    ap.add_argument("--col_csv", default="Original URL", help="Input custom column name")
+    ap.add_argument("--outdir", default="shots", help="Output directory name")
     ap.add_argument("--headful", action="store_true", help="Show browser window")
-    ap.add_argument("--delay", type=float, default=1.0)
-    ap.add_argument("--width", type=int, default=1366)
-    ap.add_argument("--height", type=int, default=768)
+    ap.add_argument("--delay", type=float, default=1.0, help="Scraping delay between process")
+    ap.add_argument("--width", type=int, default=1366, help="Screenshot media width")
+    ap.add_argument("--height", type=int, default=768, help="Screenshot media height")
+    ap.add_argument("--device", type=str, default="Chromium", help="Device Used: Chromium or Chrome")
     args = ap.parse_args()
 
     scrape(
         csv_path=args.csv,
+        col_csv=args.col_csv,
         outdir=args.outdir,
         headless=not args.headful,
         delay=args.delay,
         width=args.width,
         height=args.height,
+        device=args.device
     )
 
 if __name__ == "__main__":
