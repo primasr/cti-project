@@ -1,0 +1,6 @@
+# ioc | ioc_type
+https://spareline.ru/wp-includes/post-template.html | url
+a464cfd80810c6f5357b4e738317e900baef9a45fbbc59f5c51475f69b053e5e | hash
+217.60.1.46 | ip
+596d050eac776dc930a5b1235d20d461f0295da280bb9bf71f8eecb4f7cf201e | hash
+9d8b9090972ec013f3ad0236f5210bd70fe4ba87402fdefeac399cf11dba2efe | hash
