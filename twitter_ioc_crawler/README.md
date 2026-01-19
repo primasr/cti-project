@@ -42,6 +42,7 @@ This project is a simple **Cyber Threat Intelligence (CTI) pipeline** that colle
 
 - Secrets and API keys are loaded from `.env`
 - `.env` is ignored via `.gitignore`
+- Please check `requirements.txt`
 
 ## Purpose
 
