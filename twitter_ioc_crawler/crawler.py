@@ -15,7 +15,7 @@ load_dotenv()
 
 # ================= CONFIG =================
 USERNAME = "malwrhunterteam"
-MAX_HASH_TWEETS = 2
+MAX_HASH_TWEETS = 5
 
 LOG_FILE = "crawler_logging.log"
 TXT_FILE = "posts.txt"

@@ -143,7 +143,7 @@ def send_vt_result_to_siem(result: dict):
     Send ONE newly enriched IOC to SIEM
     """
     event = {
-        "timestamp": parse_ts_to_epoch_ms(result.get("last_analysis_date")),
+        "last_analysis_date": result.get("last_analysis_date"),
         "source": "VirusTotal",
         "ioc": result.get("ioc"),
         "ioc_type": result.get("ioc_type"),
