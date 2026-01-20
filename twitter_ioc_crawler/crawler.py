@@ -15,7 +15,7 @@ load_dotenv()
 
 # ================= CONFIG =================
 USERNAME = "malwrhunterteam"
-MAX_HASH_TWEETS = 3
+MAX_HASH_TWEETS = 2
 
 LOG_FILE = "crawler_logging.log"
 TXT_FILE = "posts.txt"
@@ -292,34 +292,43 @@ def main():
 
             tweet_time = get_tweet_time(t)
 
-            # ---- IOC INDEXING (hash + ip + url) ----
-            index_iocs = set()
+            # posts.txt + iocs.txt must be written together
+            for ioc in parsed["iocs"]:
+                if ioc in seen_ioc:
+                    logging.info(
+                        f"Duplicate IOC skipped | hash={ioc} | source={seen_ioc[ioc]}"
+                    )
+                    continue
 
-            # hashes
-            index_iocs.update(parsed["iocs"])
+                # ---- SAVE POST ----
+                save_txt(parsed, tweet_time, ioc)
+                seen_ioc[ioc] = "runtime"
+                new_ioc_count += 1
+                logging.info(f"New IOC collected | hash={ioc}")
 
-            # ip (single value)
-            if parsed.get("ip"):
-                index_iocs.add(parsed["ip"])
+                # ---- INDEX IOC (ONLY IF POST IS NEW) ----
+                related_iocs = set()
+                related_iocs.add(ioc)
 
-            # url (single value)
-            if parsed.get("url"):
-                index_iocs.add(parsed["url"])
+                if parsed.get("ip"):
+                    related_iocs.add(parsed["ip"])
 
-            # iocs.csv
-            for idx_ioc in index_iocs:
-                if idx_ioc in seen_index:
-                    continue  # already indexed globally
+                if parsed.get("url"):
+                    related_iocs.add(parsed["url"])
 
                 index_exists = os.path.isfile(IOC_INDEX_FILE)
-                ioc_type = get_ioc_type(idx_ioc)
 
                 with open(IOC_INDEX_FILE, "a", encoding="utf-8") as f:
                     if not index_exists:
                         f.write("# ioc | ioc_type\n")
-                    f.write(f"{idx_ioc} | {ioc_type}\n")
 
-                seen_index.add(idx_ioc)
+                    for idx_ioc in related_iocs:
+                        if idx_ioc in seen_index:
+                            continue
+
+                        ioc_type = get_ioc_type(idx_ioc)
+                        f.write(f"{idx_ioc} | {ioc_type}\n")
+                        seen_index.add(idx_ioc)
 
             # posts.csv
             for ioc in parsed["iocs"]:
