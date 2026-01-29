@@ -1,6 +1,4 @@
-# ioc | ioc_type
-https://spareline.ru/wp-includes/post-template.html | url
-a464cfd80810c6f5357b4e738317e900baef9a45fbbc59f5c51475f69b053e5e | hash
-217.60.1.46 | ip
-596d050eac776dc930a5b1235d20d461f0295da280bb9bf71f8eecb4f7cf201e | hash
-9d8b9090972ec013f3ad0236f5210bd70fe4ba87402fdefeac399cf11dba2efe | hash
+# ioc | ioc_type | twitter_link
+a4f1b79e96a7d016de1991a64506792018de99eac5df00f7cabe26ef41b2bd81 | hash | https://x.com/malwrhunterteam/status/2016856191826075924
+400eb6a94810323a1fc5f8ab31c682fe765aaec2cc61b37c31d719c7e45c9a6c | hash | https://x.com/malwrhunterteam/status/2016856191826075924
+ea6f39158671ff940a94c433c354e7d27b885ca2d57ce205f87e47f17f934055 | hash | https://x.com/malwrhunterteam/status/2016553201051357518
