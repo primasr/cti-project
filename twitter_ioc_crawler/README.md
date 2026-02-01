@@ -1,28 +1,81 @@
 # Twitter IOC Crawler & TIP Enrichment Pipeline
 
-This project is a lightweight **Cyber Threat Intelligence (CTI) pipeline** that crawls Twitter (X) for Indicators of Compromise (IOCs), stores them locally, enriches them using multiple Threat Intelligence Platforms (TIPs), and forwards the enriched results to a SIEM.
+This project is a lightweight **Cyber Threat Intelligence (CTI) pipeline** designed to crawl Twitter (X) for Indicators of Compromise (IOCs), store them locally, enrich them using multiple Threat Intelligence Platforms (TIPs), and optionally forward enriched results to a SIEM. It is intended for testing, learning, and validating IOC collection and enrichment workflows in a modular and automation-friendly environment.
 
-The pipeline is designed for testing, learning, and validating IOC collection and enrichment workflows.
+The pipeline is composed of two core components: a Crawler that collects tweets from configurable Twitter usernames and extracts IOCs (hash, IP, URL), and a TIP Enrichment engine that enriches collected IOCs using VirusTotal, AlienVault OTX, MalwareBazaar, and AbuseIPDB. The system supports runtime customization such as tweet count selection and optional SIEM forwarding.
 
-## Overview
+## Latest Update (Feb 2nd 2026)
 
-The pipeline consists of three main components:
+The pipeline now supports runtime customization and better logging.
 
-1. Crawler
-Collects tweets, extracts IOCs, and stores them locally.
-2. TIP Enrichment
-Enriches collected IOCs using VirusTotal, AlienVault OTX, MalwareBazaar, and AbuseIPDB.
-3. Orchestrator
-Runs the crawler first, then enriches the collected IOCs.
+1. Custom Twitter Username List
+Users can define which X accounts to crawl via a text file instead of hardcoding.
+
+2. Custom Number of Tweets to Crawl
+Users can specify how many IOC-containing tweets to process. Default is 3.
+
+3. Optional SIEM Forwarding
+Users can choose whether to send enrichment results to SIEM. Default is disabled.
+
+4. Dual Log Output
+Logs are written to:
+
+- `logging.log`
+- `twitter_ioc_crawler_log.txt`
+
+5. Python 3.9 Compatibility Adjustments
+Typing updated to avoid Python 3.10-only syntax.
+
+6. Improved IOC Detection
+Supports SHA256 hashes, IPv4 addresses, and HTTP/HTTPS URLs.
+
+## How to Run
+
+Run with default behavior (SIEM disabled):
+```python
+python3 main.py --tweets 2
+```
+
+If you want to forward the results to SIEM:
+```python
+python3 main.py --tweets 2 --siem
+```
+
+## Requirements
+- Python 3.9 (or higher)
+- Selenium-compatible browser (e.g., Chromium / Chrome)
+- Valid API keys for:
+   * VirusTotal
+   * AlienVault OTX
+   * MalwareBazaar
+   * AbuseIPDB
+   * SIEM (if needed)
+- Twitter account cookies for authenticated crawling (_AUTH_TOKEN_ & _CT0_)
+
+## Input(s)
+You need to create a `.txt` file named `twitter_users.txt` containing the list of X/Twitter users that you want to crawl. The format is one username per line. See example.
+
+## Outputs
+The pipeline generates the following files:
+
+- `logging.log` & `twitter_ioc_crawler_log.txt`
+Contains execution logs for crawling, enrichment, warnings, and errors.
+- `iocs.txt`
+Stores the list of IOCs collected from Twitter, including:
+   * IOC value
+   * IOC type
+   * Tweet (X) link
+- `tip_results.txt`
+Stores the final enrichment results after checking IOC verdicts from multiple Threat Intelligence Platforms.
 
 ## File Structure
 
 1. `crawler.py`
-Crawls Twitter using Selenium, extracts IOCs from tweets, and saves them to an index file.
+Crawls Twitter using Selenium, extracts IOCs, and saves them locally.
 2. `tip.py`
 Enriches collected IOCs using multiple Threat Intelligence Platforms and sends the results to a SIEM.
 3. `main.py`
-Entry point that runs the crawler and TIP enrichment sequentially.
+Entry point. Supports CLI arguments for runtime configuration.
 
 ## Folder Structure
 
@@ -34,31 +87,6 @@ Contains archived versions of older crawler and TIP implementations, kept for re
 
 3. ### tip_tests/
 Contains standalone test scripts used to validate the functionality of each individual Threat Intelligence Platform (TIP) integration.
-
-## How It Works
-
-1. ### Twitter Crawling
-   - Selenium opens Twitter using stored cookies.
-   - Tweets are loaded and scrolled automatically.
-   - Pinned tweets are skipped.
-   - Each tweet is scanned for IOCs (IP, URL, hash).
-   - Duplicate IOCs (based on IOC + tweet link) are skipped.
-   - New IOCs are saved locally.
-
-2. ### IOC Enrichment
-   - Previously collected IOCs are loaded from the index.
-   - Already enriched IOCs are skipped.
-   - Each IOC is enriched using:
-      * VirusTotal (IP, URL, hash)
-      * AlienVault OTX (IP, URL, hash)
-      * MalwareBazaar (hash only)
-      * AbuseIPDB (IP only)
-   - Results are normalized and stored.
-   - Newly enriched IOCs are forwarded to the SIEM.
-
-3. ### Execution Flow
-   - The crawler runs first.
-   - TIP enrichment runs after crawling completes.
 
 ## Scripts
 
@@ -101,25 +129,7 @@ Execution order:
    - Run Twitter crawler
    - Run TIP enrichment
 
-## Requirements
-- Python 3.x
-- Selenium-compatible browser (e.g., Chromium / Chrome)
-- Valid API keys for:
-   * VirusTotal
-   * AlienVault OTX
-   * MalwareBazaar
-   * AbuseIPDB
-- Twitter account cookies for authenticated crawling
-
-## Outputs
-The pipeline generates the following files:
-
-- `logging.log`
-Contains execution logs for crawling, enrichment, warnings, and errors.
-- `iocs.txt`
-Stores the list of IOCs collected from Twitter, including:
-   * IOC value
-   * IOC type
-   * Tweet (X) link
-- `tip_results.txt`
-Stores the final enrichment results after checking IOC verdicts from multiple Threat Intelligence Platforms.
+Parameters:
+  - `-h`, `--help`      show this help message and exit
+  - `--tweets TWEETS`   Number of tweets to crawl (default: 3)
+  - `-siem`             Send enriched results to SIEM
