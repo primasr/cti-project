@@ -1,7 +1,7 @@
 import time
 import logging
 
-from _utils.tip_siem import send_tip_result_to_siem
+from _utils.siem import send_tip_result_to_siem
 from _utils.logging_config import setup_logging
 from _utils.config import VT_SLEEP
 from _utils.tip_vt_api import vt_lookup
@@ -16,7 +16,7 @@ from _utils.tip_file_io import (
 
 setup_logging()
 
-def tip_main():
+def tip_main(send_to_siem: bool = False):
     logging.info("[✓] START - Cheking to Threat Intelligence Tools")
 
     indexed_iocs = load_ioc_index()
@@ -87,8 +87,13 @@ def tip_main():
         save_tip_result(result)
         seen_results.add(ioc)
 
-        # ---- SEND TO SIEM (ONLY NEW IOC) ----
-        send_tip_result_to_siem(result)
+        # ---- OPTIONAL SIEM SEND ----
+        if send_to_siem:
+            try:
+                send_tip_result_to_siem(result)
+                logging.info(f"SIEM sent | IOC={ioc}")
+            except Exception as e:
+                logging.error(f"SIEM send failed | IOC={ioc} | err={e}")
 
         new_count += 1
 
@@ -99,7 +104,3 @@ def tip_main():
         time.sleep(VT_SLEEP)
 
     logging.info(f"[✓] FINISH - Cheking to Threat Intelligence Tools | new={new_count}")
-
-
-# if __name__ == "__main__":
-#     tip_main()

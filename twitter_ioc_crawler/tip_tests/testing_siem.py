@@ -1,4 +1,4 @@
-from _utils.tip_siem import send_tip_result_to_siem
+from _utils.siem import send_tip_result_to_siem
 
 # dummy_result.py (or inline for testing)
 

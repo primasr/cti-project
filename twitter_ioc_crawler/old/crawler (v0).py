@@ -39,7 +39,7 @@ FILENAME_PLAIN_REGEX = re.compile(
     r'\b([\w\-]+\.(exe|dll|pif|msi|zip))\b', re.I
 )
 
-HASH_REGEX = re.compile(r'\b[a-fA-F0-9]{32,64}\b')
+HASH_SHA256_REGEX = re.compile(r'\b[a-fA-F0-9]{32,64}\b')
 URL_REGEX = re.compile(r'https?://[^\s]+')
 
 SEEN_REGEX = re.compile(r'seen from\s+([A-Za-z ]+)', re.I)
@@ -48,7 +48,7 @@ IP_REGEX = re.compile(
 )
 
 def get_ioc_type(ioc: str) -> str:
-    if HASH_REGEX.fullmatch(ioc):
+    if HASH_SHA256_REGEX.fullmatch(ioc):
         return "hash"
     if IP_REGEX.fullmatch(ioc):
         return "ip"
@@ -72,7 +72,7 @@ def normalize(text: str) -> str:
 
 def has_ioc(text: str) -> bool:
     return bool(
-        HASH_REGEX.search(text) or
+        HASH_SHA256_REGEX.search(text) or
         IP_REGEX.search(text) or
         URL_REGEX.search(text)
     )
@@ -182,7 +182,7 @@ def parse(text, images):
         data["filename"] = m.group(1)
 
     # Change to array, so that the we can get multiple IoCs
-    hashes = HASH_REGEX.findall(text)
+    hashes = HASH_SHA256_REGEX.findall(text)
     if hashes:
         data["iocs"] = list(set(hashes))  # deduplicate inside tweet
 

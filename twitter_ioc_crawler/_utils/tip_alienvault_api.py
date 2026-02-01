@@ -3,6 +3,8 @@ import re
 import requests
 import urllib.parse
 from datetime import datetime, timezone
+from typing import Optional
+from .regex import HASH_SHA256_REGEX, IP_REGEX, URL_REGEX
 
 from .config import ALIENVAULT_OTX_KEY, ALIENVAULT_BASE_API, ALIENVAULT_BASE_UI
 
@@ -12,20 +14,22 @@ IOC_TYPE_MAP = {
     "hash": "file",
 }
 
-def _detect_ioc_type(ioc: str) -> str | None:
-    if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ioc):
+def _detect_ioc_type(ioc: str) -> Optional[str]:
+    ioc = ioc.strip()
+
+    if IP_REGEX.fullmatch(ioc):
         return "ip"
 
-    if re.match(r"^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$", ioc):
+    if HASH_SHA256_REGEX.fullmatch(ioc):
         return "hash"
 
-    if ioc.startswith("http://") or ioc.startswith("https://"):
+    if URL_REGEX.fullmatch(ioc):
         return "url"
 
     return None
 
 
-def alienvault_lookup(ioc: str) -> dict | None:
+def alienvault_lookup(ioc: str) -> Optional[dict]:
     """
     Lookup IOC in AlienVault OTX.
     Returns extracted fields or None.

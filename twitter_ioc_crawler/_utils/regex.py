@@ -1,13 +1,22 @@
 import re
 
-COMPANY_REGEX = re.compile(r'^"([^"]+)"', re.M)
-CERT_REGEX = re.compile(r'\(([^)]*cert[^)]*)\)', re.I)
+# === HASH (SHA256 ONLY) ===
+HASH_SHA256_REGEX = re.compile(
+    r'\b[a-fA-F0-9]{64}\b'
+)
 
-FILENAME_REGEX = re.compile(r'"([^"]+\.(exe|dll|pif|msi|zip))"', re.I)
-FILENAME_PLAIN_REGEX = re.compile(r'\b([\w\-]+\.(exe|dll|pif|msi|zip))\b', re.I)
+# === IP (Support normal + defanged like 1[.]1[.]1[.]1) ===
+IP_REGEX = re.compile(
+    r'\b'
+    r'(?:\d{1,3})(?:\[\.\]|\.)'
+    r'(?:\d{1,3})(?:\[\.\]|\.)'
+    r'(?:\d{1,3})(?:\[\.\]|\.)'
+    r'(?:\d{1,3})'
+    r'\b'
+)
 
-HASH_REGEX = re.compile(r'\b[a-fA-F0-9]{32,64}\b')
-IP_REGEX = re.compile(r'\b\d{1,3}(?:\[\.\]|\.)\d{1,3}(?:\[\.\]|\.)\d{1,3}(?:\[\.\]|\.)\d{1,3}\b')
-URL_REGEX = re.compile(r'https?://[^\s]+')
-
-SEEN_REGEX = re.compile(r'seen from\s+([A-Za-z ]+)', re.I)
+# === URL (http + https, stops at whitespace or closing bracket) ===
+URL_REGEX = re.compile(
+    r'\bhttps?://[^\s<>"\'\]]+',
+    re.IGNORECASE
+)

@@ -5,8 +5,9 @@ from .config import ABUSEIPDB_API_KEY, ABUSEIPDB_URL
 from requests.exceptions import RequestException
 from datetime import datetime
 import time
+from typing import Optional
 
-def abuseipdb_lookup(ip: str, retries: int = 3) -> dict | None:
+def abuseipdb_lookup(ip: str, retries: int = 3) -> Optional[dict]:
     """
     Lookup IP reputation from AbuseIPDB.
     Returns a dict with extracted fields or None.

@@ -1,0 +1,53 @@
+2026-02-02 01:59:31,193 | INFO | [✓] START CRAWLING
+2026-02-02 01:59:31,193 | INFO | [+] Crawling @malwrhunterteam
+2026-02-02 01:59:31,230 | WARNING | The chromedriver version (141.0.7390.122) detected in PATH at /usr/bin/chromedriver might not be compatible with the detected chrome version (142.0.7444.59); currently, chromedriver 142.0.7444.175 is recommended for chrome 142.*, so it is advised to delete the driver in PATH and retry
+2026-02-02 01:59:45,760 | INFO | iocs.txt not found, starting fresh
+2026-02-02 01:59:56,615 | INFO | New IOC collected | type=url | ioc=https://vesting.clawdbotatg.eth.limo/
+2026-02-02 01:59:56,615 | INFO | New IOC collected | type=url | ioc=https://clawdbotatg.fun/
+2026-02-02 01:59:56,615 | INFO | New IOC collected | type=url | ioc=https://clawd-pfp-market.vercel.app/
+2026-02-02 01:59:56,615 | INFO | New IOC collected | type=url | ioc=https://clawdbotatg.com/
+2026-02-02 01:59:58,695 | INFO | [✓] FINISH @malwrhunterteam | ioc_tweets_seen=1 | new_ioc=4
+2026-02-02 01:59:58,695 | INFO | [+] Crawling @abuse_ch
+2026-02-02 01:59:58,731 | WARNING | The chromedriver version (141.0.7390.122) detected in PATH at /usr/bin/chromedriver might not be compatible with the detected chrome version (142.0.7444.59); currently, chromedriver 142.0.7444.175 is recommended for chrome 142.*, so it is advised to delete the driver in PATH and retry
+2026-02-02 02:00:12,684 | INFO | New IOC collected | type=url | ioc=https://goldenring.live/api/logs/check
+2026-02-02 02:00:14,752 | INFO | [✓] FINISH @abuse_ch | ioc_tweets_seen=1 | new_ioc=1
+2026-02-02 02:00:14,752 | INFO | [✓] ALL USER CRAWLING FINISHED
+2026-02-02 02:00:14,752 | INFO | [✓] START - Cheking to Threat Intelligence Tools
+2026-02-02 02:00:14,752 | INFO | [+] Loaded 5 IOCs from index
+2026-02-02 02:00:14,752 | INFO | [+] Loaded 0 existing VT results
+2026-02-02 02:00:14,752 | INFO | VT lookup | IOC=https://clawdbotatg.com/
+2026-02-02 02:00:15,581 | INFO | AlienVault lookup | IOC=https://clawdbotatg.com/
+2026-02-02 02:00:15,582 | INFO | AlienVault lookup | IOC=https://clawdbotatg.com/
+2026-02-02 02:00:15,987 | INFO | AlienVault not found | IOC=https://clawdbotatg.com/
+2026-02-02 02:00:15,989 | WARNING | AlienVault no data | IOC=https://clawdbotatg.com/
+2026-02-02 02:00:15,990 | INFO | TIP result saved | IOC=https://clawdbotatg.com/ | NEW
+2026-02-02 02:00:15,990 | INFO | Enriched IOC=https://clawdbotatg.com/
+2026-02-02 02:00:35,990 | INFO | VT lookup | IOC=https://clawdbotatg.fun/
+2026-02-02 02:00:36,672 | INFO | AlienVault lookup | IOC=https://clawdbotatg.fun/
+2026-02-02 02:00:36,673 | INFO | AlienVault lookup | IOC=https://clawdbotatg.fun/
+2026-02-02 02:00:37,080 | INFO | AlienVault not found | IOC=https://clawdbotatg.fun/
+2026-02-02 02:00:37,082 | WARNING | AlienVault no data | IOC=https://clawdbotatg.fun/
+2026-02-02 02:00:37,083 | INFO | TIP result saved | IOC=https://clawdbotatg.fun/ | NEW
+2026-02-02 02:00:37,083 | INFO | Enriched IOC=https://clawdbotatg.fun/
+2026-02-02 02:00:57,084 | INFO | VT lookup | IOC=https://goldenring.live/api/logs/check
+2026-02-02 02:00:57,665 | INFO | AlienVault lookup | IOC=https://goldenring.live/api/logs/check
+2026-02-02 02:00:57,666 | INFO | AlienVault lookup | IOC=https://goldenring.live/api/logs/check
+2026-02-02 02:00:58,071 | INFO | AlienVault not found | IOC=https://goldenring.live/api/logs/check
+2026-02-02 02:00:58,074 | WARNING | AlienVault no data | IOC=https://goldenring.live/api/logs/check
+2026-02-02 02:00:58,074 | INFO | TIP result saved | IOC=https://goldenring.live/api/logs/check | NEW
+2026-02-02 02:00:58,075 | INFO | Enriched IOC=https://goldenring.live/api/logs/check
+2026-02-02 02:01:18,075 | INFO | VT lookup | IOC=https://vesting.clawdbotatg.eth.limo/
+2026-02-02 02:01:18,658 | INFO | AlienVault lookup | IOC=https://vesting.clawdbotatg.eth.limo/
+2026-02-02 02:01:18,659 | INFO | AlienVault lookup | IOC=https://vesting.clawdbotatg.eth.limo/
+2026-02-02 02:01:19,064 | INFO | AlienVault not found | IOC=https://vesting.clawdbotatg.eth.limo/
+2026-02-02 02:01:19,067 | WARNING | AlienVault no data | IOC=https://vesting.clawdbotatg.eth.limo/
+2026-02-02 02:01:19,068 | INFO | TIP result saved | IOC=https://vesting.clawdbotatg.eth.limo/ | NEW
+2026-02-02 02:01:19,068 | INFO | Enriched IOC=https://vesting.clawdbotatg.eth.limo/
+2026-02-02 02:01:39,068 | INFO | VT lookup | IOC=https://clawd-pfp-market.vercel.app/
+2026-02-02 02:01:39,693 | INFO | AlienVault lookup | IOC=https://clawd-pfp-market.vercel.app/
+2026-02-02 02:01:39,694 | INFO | AlienVault lookup | IOC=https://clawd-pfp-market.vercel.app/
+2026-02-02 02:01:40,057 | INFO | AlienVault not found | IOC=https://clawd-pfp-market.vercel.app/
+2026-02-02 02:01:40,058 | WARNING | AlienVault no data | IOC=https://clawd-pfp-market.vercel.app/
+2026-02-02 02:01:40,059 | INFO | TIP result saved | IOC=https://clawd-pfp-market.vercel.app/ | NEW
+2026-02-02 02:01:40,060 | INFO | Enriched IOC=https://clawd-pfp-market.vercel.app/
+2026-02-02 02:02:00,060 | INFO | [✓] FINISH - Cheking to Threat Intelligence Tools | new=5

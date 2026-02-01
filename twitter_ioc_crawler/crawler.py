@@ -4,7 +4,7 @@ import logging
 from selenium.webdriver.common.by import By
 
 from _utils.logging_config import setup_logging
-from _utils.config import MAX_HASH_TWEETS, IOC_INDEX_FILE
+from _utils.config import IOC_INDEX_FILE, TWITTER_USER_FILE
 from _utils.selenium_driver import (
     create_driver,
     inject_cookies,
@@ -17,115 +17,130 @@ from _utils.file_io import (
     save_ioc,
 )
 
+from _utils.twitter_user_loader import load_usernames
+
 
 setup_logging()
 
 # ================= MAIN ===================
-def crawler_main():
+def crawler_main(max_tweets: int = 3):
+
     logging.info("[✓] START CRAWLING")
 
-    driver = create_driver()
-    inject_cookies(driver)
+    usernames = load_usernames(TWITTER_USER_FILE)
 
-    try:
-        wait_for_tweets(driver)
-    except Exception:
-        logging.error("Tweets did not load — aborting")
-        driver.quit()
+    if not usernames:
+        logging.error("No usernames found to crawl")
         return
 
-    seen_ioc = load_existing_iocs()
-    logging.info(f"Loaded {len(seen_ioc)} existing IOC records")
+    for username in usernames:
 
-    hash_tweets_seen = 0
-    new_ioc_count = 0
+        logging.info(f"[+] Crawling @{username}")
 
-    processed_articles = set()
-    no_new_rounds = 0
-    MAX_IDLE_ROUNDS = 3
+        driver = create_driver()
+        inject_cookies(driver, username)
 
-    while hash_tweets_seen < MAX_HASH_TWEETS and no_new_rounds < MAX_IDLE_ROUNDS:
-        tweets = driver.find_elements(By.XPATH, "//article")
-        new_seen_this_round = False
+        try:
+            wait_for_tweets(driver)
+        except Exception:
+            logging.error(f"Tweets did not load for @{username}")
+            driver.quit()
+            continue
 
-        for t in tweets:
-            tid = t.get_attribute("outerHTML")
-            if tid in processed_articles:
-                continue
+        # ---- Existing IOC DB ----
+        seen_ioc = load_existing_iocs()
 
-            processed_articles.add(tid)
-            new_seen_this_round = True
+        ioc_tweets_seen = 0
+        new_ioc_count = 0
 
-            # pinned tweet check
-            try:
-                t.find_element(By.XPATH, ".//*[text()='Pinned']")
-                continue
-            except:
-                pass
+        processed_tweet_ids = set()
+        no_new_rounds = 0
+        MAX_IDLE_ROUNDS = 3
 
-            text = t.text.strip()
-            if not text or not has_ioc(text):
-                continue
+        while ioc_tweets_seen < max_tweets and no_new_rounds < MAX_IDLE_ROUNDS:
 
-            hash_tweets_seen += 1
+            tweets = driver.find_elements(By.XPATH, "//article")
+            new_seen_this_round = False
 
-            parsed = parse_tweet(text, images=[])
+            for t in tweets:
 
-            if not parsed["iocs"]:
-                continue
+                tweet_link = ""
+                tweet_id = ""
 
-            # get tweet time
-            tweet_time = None
-            try:
-                time_elem = t.find_element(By.XPATH, ".//time")
-                tweet_time = time_elem.get_attribute("datetime")
-            except:
-                pass
+                try:
+                    link_elem = t.find_element(
+                        By.XPATH,
+                        ".//a[contains(@href, '/status/')]"
+                    )
+                    href = link_elem.get_attribute("href")
 
-            tweet_link = ""
-            try:
-                link_elem = t.find_element(
-                    By.XPATH,
-                    ".//a[contains(@href, '/status/')]"
-                )
-                href = link_elem.get_attribute("href")
-                if href:
-                    tweet_link = href.split("?")[0]  # remove tracking params
-            except:
-                pass
+                    if href:
+                        tweet_link = href.split("?")[0]
+                        tweet_id = tweet_link.split("/")[-1]
 
-            # iocs.txt
-            for ioc in parsed["iocs"]:
-                if (ioc, tweet_link) in seen_ioc:
-                    logging.info(f"Duplicate IOC skipped | IOC={ioc}")
+                except Exception:
+                    pass
+
+                if not tweet_id or tweet_id in processed_tweet_ids:
                     continue
 
-                # ---- SAVE POST ----
-                ioc_type = get_ioc_type(ioc)
-                save_ioc(ioc, ioc_type, tweet_link)
-                seen_ioc.add((ioc, tweet_link))
-                new_ioc_count += 1
-                logging.info(f"New IOC collected | hash={ioc}")
+                processed_tweet_ids.add(tweet_id)
+                new_seen_this_round = True
 
-            if hash_tweets_seen >= MAX_HASH_TWEETS:
-                break
+                try:
+                    t.find_element(By.XPATH, ".//*[text()='Pinned']")
+                    continue
+                except Exception:
+                    pass
 
-        if not new_seen_this_round:
-            no_new_rounds += 1
-        else:
-            no_new_rounds = 0
+                text = t.text.strip()
 
-        driver.execute_script("window.scrollBy(0, 800);")
-        time.sleep(2)
+                if not text or not has_ioc(text):
+                    continue
 
-    driver.quit()
+                ioc_tweets_seen += 1
 
-    logging.info(
-        f"[✓] FINISH CRAWLING | "
-        f"hash_tweets_seen={hash_tweets_seen} | "
-        f"new_ioc={new_ioc_count}"
-    )
+                parsed = parse_tweet(text, images=[])
 
+                if not parsed["iocs"]:
+                    continue
 
-# if __name__ == "__main__":
-#     crawler_main()
+                for ioc in parsed["iocs"]:
+
+                    if ioc in seen_ioc:
+                        logging.info(f"Duplicate IOC skipped | IOC={ioc}")
+                        continue
+
+                    ioc_type = get_ioc_type(ioc)
+
+                    save_ioc(ioc, ioc_type, tweet_link)
+
+                    seen_ioc.add(ioc)
+                    new_ioc_count += 1
+
+                    logging.info(
+                        f"New IOC collected | "
+                        f"type={ioc_type} | "
+                        f"ioc={ioc}"
+                    )
+
+                if ioc_tweets_seen >= max_tweets:
+                    break
+
+            if not new_seen_this_round:
+                no_new_rounds += 1
+            else:
+                no_new_rounds = 0
+
+            driver.execute_script("window.scrollBy(0, 800);")
+            time.sleep(2)
+
+        driver.quit()
+
+        logging.info(
+            f"[✓] FINISH @{username} | "
+            f"ioc_tweets_seen={ioc_tweets_seen} | "
+            f"new_ioc={new_ioc_count}"
+        )
+
+    logging.info("[✓] ALL USER CRAWLING FINISHED")

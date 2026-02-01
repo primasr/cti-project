@@ -7,10 +7,9 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parents[1]
 
 # ---- Twitter / X ----
-USERNAME = "malwrhunterteam"
-MAX_HASH_TWEETS = 3
 AUTH_TOKEN = os.getenv("AUTH_TOKEN")
 CT0 = os.getenv("CT0")
+TWITTER_USER_FILE = BASE_DIR / "twitter_users.txt"
 
 # ---- Files ----
 LOG_FILE = BASE_DIR / "logging.log"

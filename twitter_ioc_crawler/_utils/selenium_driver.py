@@ -4,7 +4,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from .config import AUTH_TOKEN, CT0, USERNAME
+from .config import AUTH_TOKEN, CT0
 
 def create_driver():
     opts = Options()
@@ -12,7 +12,7 @@ def create_driver():
     opts.add_argument("--disable-gpu")
     return webdriver.Chrome(options=opts)
 
-def inject_cookies(driver):
+def inject_cookies(driver, username: str):
     driver.get("https://x.com")
     time.sleep(5)
 
@@ -30,7 +30,7 @@ def inject_cookies(driver):
         "secure": True
     })
 
-    driver.get(f"https://x.com/{USERNAME}")
+    driver.get(f"https://x.com/{username}")
     time.sleep(5)
 
 def wait_for_tweets(driver, timeout=15):
